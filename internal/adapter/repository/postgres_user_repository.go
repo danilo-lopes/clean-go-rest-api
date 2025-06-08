@@ -19,18 +19,63 @@ func NewPostgresUserRepository(db *sql.DB) *PostgresUserRepository {
 }
 
 func (r *PostgresUserRepository) Add(user entity.User) error {
-	_, err := r.db.Exec("INSERT INTO users (id, name, email) VALUES ($1, $2, $3)", user.ID, user.Name, user.Email)
-	return err
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Advisory lock by user ID to prevent concurrent modifications
+	_, err = tx.Exec("SELECT pg_advisory_xact_lock($1)", user.ID.ID())
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec("INSERT INTO users (id, name, email) VALUES ($1, $2, $3)", user.ID, user.Name, user.Email)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (r *PostgresUserRepository) Delete(user entity.User) error {
-	_, err := r.db.Exec("DELETE FROM users WHERE id = $1", user.ID)
-	return err
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Advisory lock by user ID to prevent concurrent modifications
+	_, err = tx.Exec("SELECT pg_advisory_xact_lock($1)", user.ID.ID())
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec("DELETE FROM users WHERE id = $1", user.ID)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (r *PostgresUserRepository) Update(user entity.User) error {
-	_, err := r.db.Exec("UPDATE users SET name = $1, email = $2 WHERE id = $3", user.Name, user.Email, user.ID)
-	return err
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Advisory lock by user ID to prevent concurrent modifications
+	_, err = tx.Exec("SELECT pg_advisory_xact_lock($1)", user.ID.ID())
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec("UPDATE users SET name = $1, email = $2 WHERE id = $3", user.Name, user.Email, user.ID)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (r *PostgresUserRepository) GetById(id uuid.UUID) (entity.User, error) {
