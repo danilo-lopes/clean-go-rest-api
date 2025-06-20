@@ -33,13 +33,15 @@ func LoadConfig() *Config {
 		ServerPort: getPort(),
 		TimeZone:   getEnv("TIME_ZONE", "America/Sao_Paulo"),
 		DB: DatabaseConfig{
-			Host:                 getEnv("DB_HOST", "localhost"),
-			User:                 getEnv("DB_USER", "postgres"),
-			Password:             getEnv("DB_PASSWORD", "postgres"),
-			Name:                 getEnv("DB_NAME", "go_rest_api"),
-			Port:                 getEnv("DB_PORT", "5432"),
-			MigrationsFolderPath: getEnv("DB_MIGRATIONS_FOLDER", "file://migrations"),
-			Parameters:           getEnv("DB_PARAMETERS", ""),
+			Host:     getEnv("DB_HOST", "localhost"),
+			User:     getEnv("DB_USER", "postgres"),
+			Password: getEnv("DB_PASSWORD", "postgres"),
+			Name:     getEnv("DB_NAME", "go_rest_api"),
+			Port:     getEnv("DB_PORT", "5432"),
+			MigrationsFolderPath: getEnv(
+				"DB_MIGRATIONS_FOLDER", "file://internal/infrastructure/db/migrations",
+			),
+			Parameters: getEnv("DB_PARAMETERS", ""),
 		},
 	}
 }
