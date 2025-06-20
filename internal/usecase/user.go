@@ -30,6 +30,7 @@ func (u *UserUseCase) Add(req dto.CreateUserRequest) (uuid.UUID, error) {
 	if u.repo.EmailExists(req.Email) {
 		return uuid.Nil, errors.New("user already exists")
 	}
+
 	user := entity.User{
 		ID:    uuid.New(),
 		Name:  req.Name,
@@ -38,6 +39,7 @@ func (u *UserUseCase) Add(req dto.CreateUserRequest) (uuid.UUID, error) {
 	if err := u.repo.Add(user); err != nil {
 		return uuid.Nil, err
 	}
+
 	return user.ID, nil
 }
 
@@ -46,9 +48,11 @@ func (u *UserUseCase) Delete(req dto.DeleteUserRequest) error {
 	if err != nil {
 		return err
 	}
+
 	if user.ID == uuid.Nil {
 		return errors.New("user not found")
 	}
+
 	return u.repo.Delete(user)
 }
 
@@ -57,11 +61,14 @@ func (u *UserUseCase) Update(req dto.UpdateUserRequest) error {
 	if err != nil {
 		return err
 	}
+
 	if user.ID == uuid.Nil {
 		return errors.New("user not found")
 	}
+
 	user.Name = req.Name
 	user.Email = req.Email
+
 	return u.repo.Update(user)
 }
 
@@ -70,6 +77,7 @@ func (u *UserUseCase) GetById(id uuid.UUID) (entity.User, error) {
 	if err != nil {
 		return entity.User{}, err
 	}
+
 	return user, nil
 }
 
