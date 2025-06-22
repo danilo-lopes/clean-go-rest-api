@@ -85,7 +85,8 @@ func initDB(cfg *config.Config, logger logger.ILogger) *sql.DB {
 }
 
 func setupRouter(dbConn *sql.DB, logger logger.ILogger) *mux.Router {
-	repo := repository.NewPostgresUserRepository(dbConn)
+	db_executor := repository.NewDBExecutorAdapter(dbConn)
+	repo := repository.NewPostgresUserRepository(db_executor)
 	userUseCase := usecase.NewUserUseCase(repo)
 
 	router := mux.NewRouter()

@@ -10,11 +10,24 @@ import (
 	"github.com/google/uuid"
 )
 
-type PostgresUserRepository struct {
-	db *sql.DB
+type TxExecutor interface {
+	Exec(query string, args ...interface{}) (sql.Result, error)
+	Rollback() error
+	Commit() error
 }
 
-func NewPostgresUserRepository(db *sql.DB) *PostgresUserRepository {
+type DBExecutor interface {
+	Exec(query string, args ...interface{}) (sql.Result, error)
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+	QueryRow(query string, args ...interface{}) *sql.Row
+	Begin() (TxExecutor, error)
+}
+
+type PostgresUserRepository struct {
+	db DBExecutor
+}
+
+func NewPostgresUserRepository(db DBExecutor) *PostgresUserRepository {
 	return &PostgresUserRepository{db: db}
 }
 

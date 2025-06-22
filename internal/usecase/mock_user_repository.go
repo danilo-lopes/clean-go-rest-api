@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"clean-go-rest-api/internal/domain/entity"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -22,6 +23,9 @@ func SetupMockRepo() *UserRepositoryMock {
 func (m *UserRepositoryMock) Add(user entity.User) error {
 	if m.getByIdErr != nil {
 		return m.getByIdErr
+	}
+	if m.addErr != nil {
+		return m.addErr
 	}
 	m.users[user.ID.String()] = user
 	return nil
@@ -57,7 +61,7 @@ func (m *UserRepositoryMock) GetById(id uuid.UUID) (entity.User, error) {
 func (m *UserRepositoryMock) Search(name string) ([]entity.User, error) {
 	var result []entity.User
 	for _, u := range m.users {
-		if u.Name == name {
+		if strings.Contains(strings.ToLower(u.Name), strings.ToLower(name)) {
 			result = append(result, u)
 		}
 	}
