@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -12,22 +13,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type UserUsecaseCreateUserTestSuite struct {
+type createUserTestCase struct {
 	testName  string
 	repoSetup func(*UserRepositoryMock)
 	input     dto.CreateUserRequest
 	expected  uuid.UUID
 }
 
-type UserUsecaseDeleteUserTestSuite struct {
-	testName  string
-	repoSetup func(*UserRepositoryMock)
-	input     dto.DeleteUserRequest
-	expected  error
-}
-
 func TestUserUseCase_Add(t *testing.T) {
-	tests_scenarios := []UserUsecaseCreateUserTestSuite{
+	tests_scenarios := []createUserTestCase{
 		{
 			testName: "Valid User Creation",
 			repoSetup: func(repo *UserRepositoryMock) {
@@ -87,7 +81,8 @@ func TestUserUseCase_Add(t *testing.T) {
 				assert.Equal(t, uuid.Nil, result, "should return uuid.Nil for existing user")
 			case tests_scenarios[2].testName:
 				assert.Error(t, err, "should return an error when adding user fails")
-				assert.Equal(t, uuid.Nil, result, "should return uuid.Nil when adding user fails")
+				fmt.Println("result: ", result)
+				assert.Equal(t, tt.expected, result, "should return uuid.Nil when adding user fails")
 				assert.EqualError(t,
 					err, "database error", "should return the correct error message",
 				)
@@ -96,8 +91,15 @@ func TestUserUseCase_Add(t *testing.T) {
 	}
 }
 
+type deleteUserTestCase struct {
+	testName  string
+	repoSetup func(*UserRepositoryMock)
+	input     dto.DeleteUserRequest
+	expected  error
+}
+
 func TestUserUseCase_Delete(t *testing.T) {
-	tests_scenarios := []UserUsecaseDeleteUserTestSuite{
+	tests_scenarios := []deleteUserTestCase{
 		{
 			testName: "Valid User Deletion",
 			repoSetup: func(repo *UserRepositoryMock) {
@@ -182,6 +184,191 @@ func TestUserUseCase_Delete(t *testing.T) {
 			case tests_scenarios[3].testName:
 				assert.Error(t, err, "should return an error when get fails")
 				assert.EqualError(t, err, "get error", "should return the correct error message")
+			}
+		})
+	}
+}
+
+type updateUserTestCase struct {
+	testName  string
+	repoSetup func(*UserRepositoryMock)
+	input     dto.UpdateUserRequest
+	expected  interface{}
+}
+
+func TestUserUseCase_Update(t *testing.T) {
+	tests_scenarios := []updateUserTestCase{
+		{
+			testName: "Valid Update",
+			repoSetup: func(repo *UserRepositoryMock) {
+				userID := uuid.New()
+				repo.users[userID.String()] = entity.User{
+					ID:    userID,
+					Name:  "John Doe",
+					Email: "john.doe@xample.com",
+				}
+				repo.getByIdErr = nil
+				repo.updateErr = nil
+			},
+		},
+		{
+			testName: "Error GetById",
+			repoSetup: func(repo *UserRepositoryMock) {
+				repo.getByIdErr = errors.New("get error")
+				repo.updateErr = nil
+			},
+			expected: errors.New("get error"),
+		},
+		{
+			testName: "User not found",
+			repoSetup: func(repo *UserRepositoryMock) {
+				repo.getByIdErr = nil
+				repo.updateErr = nil
+			},
+			expected: errors.New("user not found"),
+		},
+	}
+
+	for _, tt := range tests_scenarios {
+		t.Run(tt.testName, func(t *testing.T) {
+			repo := SetupMockRepo()
+			tt.repoSetup(repo)
+
+			if tt.testName == tests_scenarios[0].testName {
+				for id := range repo.users {
+					uuidVal, _ := uuid.Parse(id)
+					tt.input.ID = uuidVal
+					tt.input.Name = "John new"
+					tt.input.Email = "john.new@example.com"
+				}
+			}
+
+			useCase := NewUserUseCase(repo)
+			err := useCase.Update(tt.input)
+
+			switch tt.testName {
+			case tests_scenarios[0].testName:
+				assert.NoError(t, err, "should not return an error for valid update")
+			case tests_scenarios[1].testName:
+				assert.Error(t, err, "should return an error for mocked error")
+				assert.Equal(t, err, tt.expected)
+			case tests_scenarios[2].testName:
+				assert.Error(t, err, "should return an error for unextisting user")
+				assert.Equal(t, err, tt.expected)
+			}
+		})
+	}
+}
+
+type getByIdUserTestCase struct {
+	testName  string
+	repoSetup func(*UserRepositoryMock)
+	input     dto.UpdateUserRequest
+	expected  interface{}
+}
+
+func TestUserUseCase_GetById(t *testing.T) {
+	tests_scenarios := []getByIdUserTestCase{
+		{
+			testName: "User found",
+			repoSetup: func(repo *UserRepositoryMock) {
+				userId := uuid.New()
+				repo.users[userId.String()] = entity.User{
+					ID:    userId,
+					Name:  "Jane Mary",
+					Email: "jane.mary@example.com",
+				}
+				repo.getByIdErr = nil
+			},
+		},
+		{
+			testName: "User not found",
+			repoSetup: func(repo *UserRepositoryMock) {
+				repo.getByIdErr = errors.New("user not found")
+			},
+		},
+	}
+
+	for _, tt := range tests_scenarios {
+		t.Run(tt.testName, func(t *testing.T) {
+			repo := SetupMockRepo()
+			tt.repoSetup(repo)
+
+			if tt.testName == tests_scenarios[0].testName {
+				for id := range repo.users {
+					uuidVal, _ := uuid.Parse(id)
+					tt.input.ID = uuidVal
+				}
+			}
+
+			useCase := NewUserUseCase(repo)
+			user, err := useCase.GetById(tt.input.ID)
+
+			switch tt.testName {
+			case tests_scenarios[0].testName:
+				tt.expected = repo.users[tt.input.ID.String()]
+				assert.NoError(t, err, "should not return an error for existent user")
+				assert.Equal(t, tt.expected, user, "user must be the expected")
+			case tests_scenarios[1].testName:
+				tt.expected = errors.New("user not found")
+				assert.Error(t, err, "should return an error for unexisting user")
+				assert.Equal(t, err, tt.expected)
+				assert.Equal(t, user, entity.User{})
+			}
+		})
+	}
+}
+
+type searchUserTestCase struct {
+	testName  string
+	repoSetup func(*UserRepositoryMock)
+	input     string
+	expected  []entity.User
+}
+
+func TestUserUseCase_Search(t *testing.T) {
+	tests_scenarios := []searchUserTestCase{
+		{
+			testName: "User found",
+			repoSetup: func(repo *UserRepositoryMock) {
+				userId := uuid.New()
+				repo.users[userId.String()] = entity.User{
+					ID:    userId,
+					Name:  "John Doe",
+					Email: "john.doe@example.com",
+				}
+			},
+			input: "John",
+		},
+		{
+			testName: "User Not Found",
+			repoSetup: func(repo *UserRepositoryMock) {
+			},
+			input: "John",
+		},
+	}
+
+	for _, tt := range tests_scenarios {
+		t.Run(tt.testName, func(t *testing.T) {
+			repo := SetupMockRepo()
+			tt.repoSetup(repo)
+
+			if tt.testName == tests_scenarios[0].testName {
+				for id := range repo.users {
+					tt.expected = append(tt.expected, repo.users[id])
+				}
+			}
+
+			useCase := NewUserUseCase(repo)
+			users, err := useCase.Search(tt.input)
+
+			switch tt.testName {
+			case tests_scenarios[0].testName:
+				assert.NoError(t, err, "should not return an error for existent user")
+				assert.Equal(t, users, tt.expected)
+			case tests_scenarios[1].testName:
+				assert.NoError(t, err, "should not return an error to search")
+				assert.Equal(t, users, tt.expected)
 			}
 		})
 	}
